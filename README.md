@@ -12,8 +12,8 @@ pip3 install  -r requiments.txt
 4) File venture_model.py is file source code  model and  processing data for traing model NN (Neural Network)
 
 ```
-model.pkl file model for svm
-model.h5  file model for nn
+model.pkl file model for svm  : 0.91 %
+model.h5  file model for nn   : 0.89 %
 ```
 ```
 258502/258502 [==============================] - 3s 10us/step - loss: 8.4464 - acc: 0.4874 - val_loss: 8.8813 - val_acc: 0.4478
