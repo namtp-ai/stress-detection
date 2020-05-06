@@ -2,7 +2,7 @@ Stress Detection using  SVM and Fully Neural Network
 
 ## Quick start
 
-I. Guideline
+### I. Guideline
 1) Clone  this repository
 2) Using pip3 install file requiment
 ```bash
