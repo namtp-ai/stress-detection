@@ -1,4 +1,4 @@
-#Stress Detection using  SVM and Fully Neural Network 
+Stress Detection using  SVM and Fully Neural Network 
 
 ## Quick start
 
