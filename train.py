@@ -21,8 +21,12 @@ def get_main_feature(data):
                  ,"TP","LF_HF","HF_LF",'condition']
 
     new_data  =  data[list_features]
+    from sklearn.preprocessing import StandardScaler
+    scaler = StandardScaler()
     label  = data['condition']
     feature =  new_data.drop(['condition'], axis =1)
+    scaler.fit(feature)
+    feature = scaler.transform(feature)
     X_train, X_test, y_train, y_test = train_test_split( feature, label, test_size=0.2, random_state=100)
     print('DONE GET FEATURES')
     return X_train, X_test, y_train, y_test 
@@ -65,17 +69,20 @@ def make_model_machine(model, x_train,X_test , y_train, y_test, filename_model):
 
 def predict(data, model_path):
     loaded_model = pickle.load(open(model_path, 'rb'))
+    print("DONE load model")
     predict_label  =  loaded_model.predict(data)
     return predict_label
 
 
 if __name__ == '__main__':
-    data  = load_data('hrv dataset/data/final/train.csv')
+    data  = load_data('hrv_dataset/data/final/train.csv')
     X_train, X_test, y_train, y_test   =  get_main_feature(data)
-    model  =  SVC(C=10, kernel='rbf')
+    model  =  SVC(C=1, kernel='rbf')
     make_model_machine(model,X_train, X_test, y_train, y_test , 'model.pkl')
 
     # evaluation_model(X_train,y_train)
-    # predict(data, 'model.pkl')
+    # text_pre =predict(X_test, 'model.pkl')
+    # acc  =  accuracy_score(y_test ,text_pre )
+    # print("ACC :" , acc)
     
     
