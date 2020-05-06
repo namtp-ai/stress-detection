@@ -1,83 +1,84 @@
-
 import pandas as pd
 import numpy as np
 import os
-import sklearn.pipeline
+from sklearn.metrics import accuracy_score
+from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import train_test_split
-from sklearn.feature_selection import SelectKBest
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.svm import SVC
-from firebase.firebase import FirebaseAuthentication,FirebaseApplication
-import time
-from hrvanalysis import get_frequency_domain_features,get_time_domain_features, get_poincare_plot_features
 
-def root_directory():
-    current_path = os.path.abspath(os.getcwd())
-    return os.path.abspath(os.path.join(current_path, os.pardir))
-def data_directory():
-    return os.path.join(root_directory(), "hrv dataset/data")
+import pickle
 
-def load_train_set():
-    #Loading a hdf5 file is much much faster
-    in_file = os.path.join(data_directory(), "final",  "train.csv")
-    return pd.read_csv(in_file)
-def load_test_set():
-    #Loading a hdf5 file is much much faster
-    in_file = os.path.join(data_directory(), "final",  "data_user.csv")
-    return pd.read_csv(in_file)
-def load_test(pipeline, hrv_features):
-    test = load_test_set()
-    X_test = test[hrv_features]
-    X_test = scaler.transform(X_test)
-    y_prediction = pipeline.predict(X_test)
-    return y_prediction[-1]
-def RR_to_features(RR_interval):
-    feautures_1 = get_poincare_plot_features(RR_interval)
-    SD1 = feautures_1['sd1']
-    SD2 = feautures_1['sd2']
-    feautures_2 = get_frequency_domain_features(RR_interval)
-    LF = feautures_2['lf']
-    HF = feautures_2['hf']
-    LF_HF = feautures_2['lf_hf_ratio']
-    HF_LF = 1/LF_HF
-    LF_NU = feautures_2['lfnu']
-    HF_NU = feautures_2['hfnu']
-    TP = feautures_2['total_power']
-    VLF = feautures_2['vlf']
-    feautures_3 = get_time_domain_features(RR_interval)
-    pNN50 = feautures_3['pnni_50']
-    RMSSD = feautures_3['rmssd']
-    MEAN_RR = feautures_3['mean_nni']
-    MEDIAN_RR = feautures_3['median_nni']
-    HR = feautures_3['mean_hr']
-    SDRR = feautures_3['sdnn']
-    SDRR_RMSSD = SDRR/RMSSD
-    SDSD = feautures_3['sdsd']
-    import csv
-    row_list = [["MEAN_RR", "MEDIAN_RR", "SDRR","RMSSD","SDSD","SDRR_RMSSD"
+
+def  load_data(file_path ):
+    return  pd.read_csv(file_path)
+
+def get_main_feature(data):
+    list_features = ["MEAN_RR", "MEDIAN_RR", "SDRR","RMSSD","SDSD","SDRR_RMSSD"
                  ,"HR","pNN50","SD1","SD2","VLF","LF","LF_NU","HF","HF_NU"
-                 ,"TP","LF_HF","HF_LF"],
-             [MEAN_RR,MEDIAN_RR,SDRR,RMSSD,SDSD,SDRR_RMSSD,HR,pNN50,SD1,SD2
-              ,VLF,LF,LF_NU,HF,HF_NU,TP,LF_HF,HF_LF]]
-    with open('data/final/data_user.csv', 'w', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerows(row_list)                    
-    
-# def diagnose():
-#     app = FirebaseApplication('https://smartmachine-ed87d.firebaseio.com/')
-#     list_data =[]
-#     while True:
-#         heart_data = app.get('/heart_rate',None)
-#         if heart_data['10'] != 0:
-#             for i in range(10,0,-1):
-#                 heart_data['%d'%i] = 60/heart_data['%d'%i]
-#                 list_data.append(heart_data['%d'%i]*1000)
-#             heart_data = dict.fromkeys(heart_data, 0)
-#             print(list_data)
-#             app.put('/','heart_rate',heart_data)
-#             if(len(list_data)%30==0):
-#                 stress = RR_to_features(list_data)
-#                 list_data.clear()
+                 ,"TP","LF_HF","HF_LF",'condition']
+
+    new_data  =  data[list_features]
+    from sklearn.preprocessing import StandardScaler
+    scaler = StandardScaler()
+    label  = data['condition']
+    feature =  new_data.drop(['condition'], axis =1)
+    scaler.fit(feature)
+    feature = scaler.transform(feature)
+    X_train, X_test, y_train, y_test = train_test_split( feature, label, test_size=0.2, random_state=100)
+    print('DONE GET FEATURES')
+    return X_train, X_test, y_train, y_test 
+
+def evaluation_model(X_train,y_train):
+    models = [
+        RandomForestClassifier(n_estimators=100, max_depth=5, random_state=0),
+        SVC(C=20, kernel='rbf'),
+        MultinomialNB(),
+        LogisticRegression(random_state=0),
+    ]
+    CV = 5
+    cv_df = pd.DataFrame(index=range(CV * len(models)))
+    print("DONE LOAD MODEL")
+    entries = []
+    for model in models:
+        print("Processing model", model)
+        model_name = model.__class__.__name__
+        accuracies = cross_val_score(model, X_train, y_train, scoring='accuracy', cv=10)
+        for fold_idx, accuracy in enumerate(accuracies):
+            entries.append((model_name, fold_idx, accuracy))
+            print('Fold_idx',fold_idx, '  Accuracy:', accuracy)
+
+    mean_accuracy = cv_df.groupby('model_name').accuracy.mean()
+    std_accuracy = cv_df.groupby('model_name').accuracy.std()
+
+    acc = pd.concat([mean_accuracy, std_accuracy], axis= 1, 
+            ignore_index=True)
+    acc.columns = ['Mean Accuracy', 'Standard deviation']
+    print(acc)
+
+
+def make_model_machine(model, x_train,X_test , y_train, y_test, filename_model):
+    model.fit(x_train , y_train)
+    text_pre = model.predict(X_test)
+    acc  =  accuracy_score(y_test ,text_pre )
+    print("ACC :" , acc)
+    pickle.dump(model, open(filename_model, 'wb'))
+    print('DONE MODEL')
+
+def predict(data, model_path):
+    loaded_model = pickle.load(open(model_path, 'rb'))
+    print("DONE load model")
+    predict_label  =  loaded_model.predict(data)
+    return predict_label
+
 
 if __name__ == '__main__':
-   
+    data  = load_data('hrv_dataset/data/final/train.csv')
+    X_train, X_test, y_train, y_test   =  get_main_feature(data)
+    model  =  RandomForestClassifier(n_estimators=100, max_depth=5, random_state=0)
+    make_model_machine(model,X_train, X_test, y_train, y_test , 'model.pkl')
+
+    # evaluation_model(X_train,y_train)
+    # text_pre =predict(X_test, 'model.pkl')
+    # acc  =  accuracy_score(y_test ,text_pre )
+    # print("ACC :" , acc)
+    
+    
