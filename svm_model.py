@@ -10,7 +10,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
 from sklearn import metrics
 import pickle
-
+from sklearn.preprocessing import StandardScaler
 
 def  load_data(file_path ):
     return  pd.read_csv(file_path)
@@ -21,7 +21,6 @@ def get_main_feature(data):
                  ,"TP","LF_HF","HF_LF",'condition']
 
     new_data  =  data[list_features]
-    from sklearn.preprocessing import StandardScaler
     scaler = StandardScaler()
     label  = data['condition']
     feature =  new_data.drop(['condition'], axis =1)
@@ -61,6 +60,7 @@ def evaluation_model(X_train,y_train):
 
 def make_model_machine(model, x_train,X_test , y_train, y_test, filename_model):
     model.fit(x_train , y_train)
+    print("DONE FIT MODEL")
     text_pre = model.predict(X_test)
     acc  =  accuracy_score(y_test ,text_pre )
     print("ACC :" , acc)
@@ -77,12 +77,12 @@ def predict(data, model_path):
 if __name__ == '__main__':
     data  = load_data('hrv_dataset/data/final/train.csv')
     X_train, X_test, y_train, y_test   =  get_main_feature(data)
-    model  =  SVC(C=1, kernel='rbf')
+    model  =  SVC(C=20, kernel='rbf',verbose=True)
     make_model_machine(model,X_train, X_test, y_train, y_test , 'model.pkl')
 
-    # evaluation_model(X_train,y_train)
-    # text_pre =predict(X_test, 'model.pkl')
-    # acc  =  accuracy_score(y_test ,text_pre )
-    # print("ACC :" , acc)
+    evaluation_model(X_train,y_train)
+    text_pre =predict(X_test, 'model.pkl')
+    acc  =  accuracy_score(y_test ,text_pre )
+    print("ACC :" , acc)
     
     
